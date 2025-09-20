@@ -1,6 +1,6 @@
 'use client'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/utils/supabase'
+import { supabase } from '@/utils/supabaseClient'
 
 export default function Instructions() {
   const router = useRouter()
