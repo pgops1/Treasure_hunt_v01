@@ -25,7 +25,8 @@
     "**/*.test.tsx",
     "types.d.ts",
     "next-env.d.ts",
-    ".next/types/**/*.ts"
+    ".next/types/**/*.ts",
+    "src/types" 
   ],
   "exclude": ["node_modules", ".next", "out"]
 }
