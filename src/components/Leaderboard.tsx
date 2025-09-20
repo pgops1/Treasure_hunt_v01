@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { supabase } from '@/utils/supabase' // or supabaseClient
+import { supabase } from '@/utils/supabaseClient'
 
 type Row = {
   username: string | null

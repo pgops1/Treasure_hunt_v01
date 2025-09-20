@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { supabase } from '@/utils/supabase' // or supabaseClient
+import { supabase } from '@/utils/supabaseClient'
 
 import CaseHeader from '@/components/CaseHeader'
 import CaseProgress from '@/components/CaseProgress'
@@ -182,7 +182,9 @@ export default function Play() {
 
       <main className="mx-auto max-w-5xl p-4">
         <div
-          className={`grid gap-6 ${hasNarrative ? 'md:grid-cols-5' : 'md:grid-cols-3'}`}
+          className={`grid gap-6 ${
+            hasNarrative ? 'md:grid-cols-5' : 'md:grid-cols-3'
+          }`}
         >
           {/* Left narrative rail (only if exists) */}
           {hasNarrative && (
@@ -195,7 +197,9 @@ export default function Play() {
 
           {/* Center dossier sheet */}
           <section
-            className={`${hasNarrative ? 'md:col-span-3' : 'md:col-span-3 md:col-start-1'} `}
+            className={`${
+              hasNarrative ? 'md:col-span-3' : 'md:col-span-3 md:col-start-1'
+            } `}
           >
             <motion.div
               animate={
