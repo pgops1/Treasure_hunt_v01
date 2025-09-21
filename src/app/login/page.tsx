@@ -1,5 +1,4 @@
 'use client'
-
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/utils/supabaseClient'
@@ -9,63 +8,74 @@ export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
 
-  // 🔑 Login
-  async function handleLogin(e: React.FormEvent) {
-    e.preventDefault()
+  const handleLogin = async () => {
     setError(null)
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
-    if (error) {
-      setError(error.message)
-    } else {
-      router.replace('/instructions')
-    }
+    setSuccess(null)
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) setError(error.message)
+    else router.replace('/instructions')
   }
 
-  // 📝 Sign-up
-  async function handleSignUp(e: React.FormEvent) {
-    e.preventDefault()
+  const handleSignup = async () => {
     setError(null)
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-    })
+    setSuccess(null)
+    const { error } = await supabase.auth.signUp({ email, password })
     if (error) {
       setError(error.message)
     } else {
-      router.replace('/instructions')
+      setSuccess('✅ Account created! Please log in.')
+      setTimeout(() => router.replace('/login'), 2000)
     }
   }
 
   return (
-    <main style={{ maxWidth: 400, margin: '100px auto', textAlign: 'center' }}>
-      <h1>🔐 Login or Sign Up</h1>
-      <form style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <main className="flex items-center justify-center min-h-screen bg-black">
+      {/* 🔹 Only this card is white */}
+      <div className="w-full max-w-md p-8 bg-white rounded-xl shadow-xl">
+        <h2 className="text-2xl font-bold text-center mb-6 text-gray-800">
+          🔐 Treasure Hunt Login
+        </h2>
+
+        {/* Email */}
         <input
           type="email"
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          style={{ padding: 10 }}
+          className="w-full p-3 mb-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
         />
+
+        {/* Password */}
         <input
           type="password"
           placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          style={{ padding: 10 }}
+          className="w-full p-3 mb-6 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
         />
-        <button onClick={handleLogin} style={{ padding: '10px 20px' }}>
-          Login
-        </button>
-        <button onClick={handleSignUp} style={{ padding: '10px 20px' }}>
-          Sign Up
-        </button>
-      </form>
-      {error && <p style={{ marginTop: 12, color: 'red' }}>{error}</p>}
+
+        {/* Buttons */}
+        <div className="flex flex-col gap-3">
+          <button
+            onClick={handleLogin}
+            className="w-full py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition"
+          >
+            Sign In
+          </button>
+          <button
+            onClick={handleSignup}
+            className="w-full py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition"
+          >
+            Create Account
+          </button>
+        </div>
+
+        {/* Messages */}
+        {error && <p className="mt-4 text-red-600 text-center">{error}</p>}
+        {success && <p className="mt-4 text-green-600 text-center">{success}</p>}
+      </div>
     </main>
   )
 }
