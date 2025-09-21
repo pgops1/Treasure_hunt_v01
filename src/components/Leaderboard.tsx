@@ -1,4 +1,5 @@
 'use client'
+
 import { useEffect, useState } from 'react'
 import { supabase } from '@/utils/supabaseClient'
 
@@ -8,69 +9,57 @@ type Row = {
   finished_at: string | null
 }
 
-type Props = {
-  /** When true, renders as a simple card you can place anywhere (no fixed positioning). */
-  embed?: boolean
-  className?: string
-}
-
-export default function Leaderboard({ embed = false, className = '' }: Props) {
+export default function Leaderboard({ onClose }: { onClose: () => void }) {
   const [rows, setRows] = useState<Row[]>([])
+  const [loading, setLoading] = useState(false)
 
-  async function fetchData() {
-    const { data } = await supabase
+  const fetchRows = async () => {
+    setLoading(true)
+    const { data, error } = await supabase
       .from('leaderboard')
       .select('username, score, finished_at')
       .order('score', { ascending: false })
       .order('finished_at', { ascending: true })
-      .limit(10)
-    setRows(data || [])
+    if (!error && data) setRows(data)
+    setLoading(false)
   }
 
   useEffect(() => {
-    fetchData()
-    const ch = supabase
-      .channel('lb_changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'leaderboard' },
-        fetchData,
-      )
-      .subscribe()
-    return () => {
-      supabase.removeChannel(ch)
-    }
+    fetchRows()
   }, [])
 
-  const rankIcon = (i: number) =>
-    i === 0 ? '👑' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`
-
-  const Card = (
-    <aside
-      className={`w-72 rounded-xl bg-slate-800 p-4 text-slate-50 shadow-xl ring-1 ring-black/10 ${className}`}
-    >
-      <h3 className="mb-3 text-lg font-bold">🏆 Leaderboard</h3>
-      <ol className="space-y-2">
-        {rows.map((r, i) => (
-          <li key={i} className="flex items-center justify-between">
-            <span>
-              <span className="inline-block w-7">{rankIcon(i)}</span>
-              {r.username ?? 'Player'}
-            </span>
-            <span className="font-bold text-sky-300">{r.score ?? 0}</span>
-          </li>
-        ))}
-      </ol>
-    </aside>
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="w-full max-w-md rounded-lg bg-white p-6 text-black shadow-lg">
+        <h2 className="mb-4 text-xl font-bold">🏆 Leaderboard</h2>
+        <button
+          onClick={fetchRows}
+          className="mb-3 rounded bg-amber-600 px-3 py-1 text-white hover:bg-amber-700"
+        >
+          Refresh
+        </button>
+        <button
+          onClick={onClose}
+          className="mb-3 ml-2 rounded bg-gray-300 px-3 py-1 text-black hover:bg-gray-400"
+        >
+          Close
+        </button>
+        {loading ? (
+          <p>Loading…</p>
+        ) : (
+          <ul className="space-y-2">
+            {rows.map((r, i) => (
+              <li
+                key={i}
+                className="flex justify-between border-b border-gray-200 pb-1"
+              >
+                <span className="font-medium">{r.username}</span>
+                <span>{r.score ?? 0}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
   )
-
-  // fixed “old” mode (kept for convenience)
-  if (!embed) {
-    return (
-      <div className="fixed right-5 top-24 z-40 hidden md:block">{Card}</div>
-    )
-  }
-
-  // embedded mode (for dropdowns/headers)
-  return Card
 }

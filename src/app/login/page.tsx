@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/utils/supabaseClient'
 
@@ -8,75 +8,64 @@ export default function LoginPage() {
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [msg, setMsg] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
-  // 🔄 If already logged in → redirect to /play
-  useEffect(() => {
-    const checkSession = async () => {
-      const { data } = await supabase.auth.getSession()
-      if (data.session) {
-        router.replace('/play')
-      }
-    }
-    checkSession()
-  }, [router])
-
-  const handleSignIn = async () => {
+  // 🔑 Login
+  async function handleLogin(e: React.FormEvent) {
+    e.preventDefault()
+    setError(null)
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
     if (error) {
-      setMsg(error.message)
+      setError(error.message)
     } else {
-      router.replace('/play')
+      router.replace('/instructions')
     }
   }
 
-  const handleSignUp = async () => {
-    const { error } = await supabase.auth.signUp({ email, password })
+  // 📝 Sign-up
+  async function handleSignUp(e: React.FormEvent) {
+    e.preventDefault()
+    setError(null)
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+    })
     if (error) {
-      setMsg(error.message)
+      setError(error.message)
     } else {
-      setMsg('📩 Check your email to confirm your account.')
+      router.replace('/instructions')
     }
   }
 
   return (
-    <main style={{ maxWidth: 400, margin: '80px auto', padding: 20 }}>
-      <h2>Login / Sign Up</h2>
-
-      <input
-        type="email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        placeholder="you@example.com"
-        style={{
-          display: 'block',
-          marginBottom: 10,
-          width: '100%',
-          padding: 8,
-        }}
-      />
-      <input
-        type="password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        placeholder="Your password"
-        style={{
-          display: 'block',
-          marginBottom: 10,
-          width: '100%',
-          padding: 8,
-        }}
-      />
-
-      <button onClick={handleSignIn} style={{ marginRight: 10 }}>
-        Sign In
-      </button>
-      <button onClick={handleSignUp}>Sign Up</button>
-
-      {msg && <p style={{ marginTop: 12 }}>{msg}</p>}
+    <main style={{ maxWidth: 400, margin: '100px auto', textAlign: 'center' }}>
+      <h1>🔐 Login or Sign Up</h1>
+      <form style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          style={{ padding: 10 }}
+        />
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          style={{ padding: 10 }}
+        />
+        <button onClick={handleLogin} style={{ padding: '10px 20px' }}>
+          Login
+        </button>
+        <button onClick={handleSignUp} style={{ padding: '10px 20px' }}>
+          Sign Up
+        </button>
+      </form>
+      {error && <p style={{ marginTop: 12, color: 'red' }}>{error}</p>}
     </main>
   )
 }

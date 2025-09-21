@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '@/utils/supabaseClient'
-
+import TopBar from '@/components/TopBar'
 import CaseHeader from '@/components/CaseHeader'
 import CaseProgress from '@/components/CaseProgress'
 
@@ -14,6 +14,22 @@ type Question = {
   prompt: string
   answer: string
   narrative?: string | null
+  answers?: string[] | null // 👈 multiple answers support
+}
+
+// ✅ leaderboard helper
+async function updateLeaderboard(
+  userId: string,
+  username: string,
+  score: number,
+) {
+  const { error } = await supabase
+    .from('leaderboard')
+    .upsert({ user_id: userId, username, score }, { onConflict: 'user_id' })
+
+  if (error) {
+    console.error('❌ updateLeaderboard failed:', error.message)
+  }
 }
 
 export default function Play() {
@@ -28,7 +44,7 @@ export default function Play() {
   const [shake, setShake] = useState(false)
   const [flipping, setFlipping] = useState(false)
 
-  // confetti loader
+  // 🎉 confetti setup
   const confettiRef = useRef<null | ((opts?: any) => void)>(null)
   const endConfettiOnce = useRef(false)
   useEffect(() => {
@@ -50,7 +66,7 @@ export default function Play() {
       : c({ particleCount: 60, spread: 70, origin: { y: 0.6 } })
   }
 
-  // auth
+  // 🔑 auth
   useEffect(() => {
     ;(async () => {
       const { data } = await supabase.auth.getSession()
@@ -59,7 +75,7 @@ export default function Play() {
     })()
   }, [router])
 
-  // total
+  // 🔢 total questions
   useEffect(() => {
     if (!ready) return
     ;(async () => {
@@ -70,56 +86,28 @@ export default function Play() {
     })()
   }, [ready])
 
-  // load current question
+  // 📄 load current question (✅ include `answers`)
   useEffect(() => {
     if (!ready || done) return
     ;(async () => {
       const { data, error } = await supabase
         .from('questions')
-        .select('id,q_order,prompt,answer,narrative') // ok even if narrative column doesn't exist? If it errors, switch to just id,q_order,prompt,answer
+        .select('id,q_order,prompt,answer,narrative,answers') // 👈 include answers
         .eq('q_order', order)
         .maybeSingle()
-      if (error) {
-        // if selecting narrative causes error because column doesn't exist, fall back:
-        const { data: d2 } = await supabase
-          .from('questions')
-          .select('id,q_order,prompt,answer')
-          .eq('q_order', order)
-          .maybeSingle()
-        if (!d2) return setDone(true)
-        setQ(d2 as Question)
-        setInput('')
-        setMsg(null)
+
+      if (error || !data) {
+        if (!data) setDone(true)
         return
       }
-      if (!data) return setDone(true)
+
       setQ(data)
       setInput('')
       setMsg(null)
     })()
   }, [ready, order, done])
 
-  // upsert leaderboard on finish
-  useEffect(() => {
-    if (!(done && total)) return
-    ;(async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      if (!session?.user) return
-      await supabase.from('leaderboard').upsert(
-        {
-          user_id: session.user.id,
-          username: session.user.email,
-          score: total,
-          finished_at: new Date().toISOString(),
-        },
-        { onConflict: 'user_id' },
-      )
-    })()
-  }, [done, total])
-
-  // one-time confetti at end
+  // 🎉 confetti at end
   useEffect(() => {
     if (done && !endConfettiOnce.current) {
       endConfettiOnce.current = true
@@ -130,11 +118,11 @@ export default function Play() {
   if (!ready)
     return <main className="p-6 text-white/90">Checking session…</main>
 
-  // END
+  // 🏁 end screen
   if (done) {
     return (
       <>
-        {/* Remove this header if you don't want it */}
+        <TopBar />
         <CaseHeader order={total ?? 0} total={total} title="Case Closed" />
         <main className="mx-auto max-w-5xl p-6 text-center text-white">
           <motion.h2
@@ -157,12 +145,36 @@ export default function Play() {
 
   const hasNarrative = !!q.narrative && q.narrative.trim().length > 0
 
-  const onSubmit = () => {
-    const correct = input.trim().toLowerCase() === q.answer.trim().toLowerCase()
+  // 📝 answer checker (supports multiple answers)
+  const onSubmit = async () => {
+    if (!q) return
+
+    const normalize = (s: string) => s.trim().toLowerCase()
+    const userAnswer = normalize(input)
+
+    // Prefer answers[] if present
+    const possibleAnswers =
+      Array.isArray(q.answers) && q.answers.length > 0
+        ? q.answers.map((a) => normalize(a))
+        : [normalize(q.answer)]
+
+    console.log('📝 Checking:', { userAnswer, possibleAnswers }) // DEBUG
+
+    const correct = possibleAnswers.includes(userAnswer)
+
     if (correct) {
       setMsg('ok')
       burst()
       setFlipping(true)
+
+      // Update leaderboard after each correct answer
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (user) {
+        await updateLeaderboard(user.id, user.email || 'Anonymous', order)
+      }
+
       setTimeout(() => {
         setFlipping(false)
         setMsg(null)
@@ -177,7 +189,10 @@ export default function Play() {
 
   return (
     <>
-      {/* Remove this header if you don't want it */}
+      {/* Top nav bar with leaderboard + logout */}
+      <TopBar />
+
+      {/* Case header progress */}
       <CaseHeader order={order} total={total} />
 
       <main className="mx-auto max-w-5xl p-4">
@@ -186,7 +201,7 @@ export default function Play() {
             hasNarrative ? 'md:grid-cols-5' : 'md:grid-cols-3'
           }`}
         >
-          {/* Left narrative rail (only if exists) */}
+          {/* Narrative left column */}
           {hasNarrative && (
             <aside className="rounded border border-zinc-200 bg-zinc-50 p-4 text-sm leading-relaxed text-zinc-800 md:col-span-2">
               <div className="mb-2 font-semibold tracking-wide">Narrative</div>
@@ -195,11 +210,11 @@ export default function Play() {
             </aside>
           )}
 
-          {/* Center dossier sheet */}
+          {/* Dossier question */}
           <section
             className={`${
               hasNarrative ? 'md:col-span-3' : 'md:col-span-3 md:col-start-1'
-            } `}
+            }`}
           >
             <motion.div
               animate={
@@ -247,10 +262,11 @@ export default function Play() {
                   onKeyDown={(e) => e.key === 'Enter' && onSubmit()}
                   placeholder="Type your answer"
                   className="
-      flex-1 rounded border border-zinc-300
-      bg-white px-3 py-2
-      text-zinc-900 outline-none placeholder:text-zinc-500 focus:ring-2 focus:ring-amber-400
-    "
+                    flex-1 rounded border border-zinc-300
+                    bg-white px-3 py-2
+                    text-zinc-900 outline-none
+                    placeholder:text-zinc-500 focus:ring-2 focus:ring-amber-400
+                  "
                 />
                 <button
                   onClick={onSubmit}
